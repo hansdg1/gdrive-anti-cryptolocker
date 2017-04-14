@@ -8,12 +8,14 @@
 // requires Advanced Drive Services:
 // https://developers.google.com/apps-script/advanced/drive
 
-var enc = ".enc"
+var enc = ".osiris"
 
-var dry = true; // set to false to decrypt, logging only
+var dry = false; // set to false to decrypt, logging only
 
 function decryptr() {
   var files = DriveApp.getFiles();
+  // If you want to restrict the scan to a particular folder, insert the folders ID in the following line
+  //var files = DriveApp.getFolderById('INSERT_FOLDER_ID_HERE').getFiles();
   var filesCount = 0;
   var revisionsCount = 0;
   var filesWithRevisionsCount = 0;
@@ -24,23 +26,26 @@ function decryptr() {
     var name = file.getName();
     
     if (isEncrypted(name)) {
-       var id = file.getId();
+      var id = file.getId();
       
-       // delete all encrypted revisions
-       var rcount = removeEncryptedRevisions(id);
-       if (rcount == 0) {
-         Logger.log('No revision to delete for %s', id);
-       } else {
-         filesWithRevisionsCount++;
-       }
-       
-       // rename back
-       var newName = name.substring(0, name.length - enc.length);
-       Logger.log('Rename %s back to %s', name, newName);
-       if (!dry) { file.setName(newName); }
-       
-       revisionsCount += rcount;
-       filesCount++;
+      // delete all encrypted revisions
+      var rcount = removeEncryptedRevisions(id);
+      if (rcount == 0) {
+        Logger.log('No revision to delete for %s', id);
+      } else {
+        filesWithRevisionsCount++;
+      }
+      
+      
+      // rename back
+      // var newName = name.substring(0, name.length - enc.length);
+      var newName = getOrigFileName2(id);
+      Logger.log('Rename %s back to %s', name, newName);
+      //Logger.log('Oldname: %s', file.getName());
+      if (!dry) { file.setName(newName); }
+      //Logger.log('New(current) name: %s', file.getName());
+      revisionsCount += rcount;
+      filesCount++;
     }
   }
   
@@ -50,7 +55,8 @@ function decryptr() {
 }
 
 function isEncrypted(name) {
-  return (name.length >= 4 && name.substring(name.length-enc.length)==enc)
+  // change to 7 to accomodate .osiris instead of .enc
+  return (name.length >= 7 && name.substring(name.length-enc.length)==enc)
 }
 
 function removeEncryptedRevisions(fileId) {
@@ -69,10 +75,19 @@ function removeEncryptedRevisions(fileId) {
           Logger.log('Date: %s, File size (bytes): %s File name: %s ChangedBy: %s Revision: %s', date.toLocaleString(),
                      revision.fileSize, revision.originalFilename, revision.lastModifyingUser.displayName, revision.id);
           if (!dry) { Drive.Revisions.remove(fileId, revision.id); }
-          count++;
+          count++;         
         }
       }
     }
   }
   return count;
+}
+
+function getOrigFileName(fileId) {
+  //var revnames = Drive.Revisions.list(fileId).items;
+  return Drive.Revisions.list(fileId).items[Drive.Revisions.list(fileId).items.length -2].originalFilename;
+}
+function getOrigFileName2(fileId) {
+ var revnames = Drive.Revisions.list(fileId).items;
+ return Drive.Revisions.list(fileId).items[Drive.Revisions.list(fileId).items.length -1].originalFilename;
 }
